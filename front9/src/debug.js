@@ -11,10 +11,10 @@ import { camLook, camPos } from "./camera.js";
 import { introFly, shoot, startHole } from "./game.js";
 import { peekCard, showCard } from "./scorecard.js";
 import { endFly, setDiff } from "./ui.js";
-import { frame, render, tick } from "./main.js";
+import { render, tick } from "./main.js";
+import { competitionHoleDone } from "./competition.js";
 import { game } from "./state.js";
 
-requestAnimationFrame(frame);
 // ---------- test hooks (only with ?debug=1) ----------
 export function installTestHooks() {
   window.G = {
@@ -26,6 +26,16 @@ export function installTestHooks() {
     },
     startHole,
     introFly,
+    /** competition: finish the current hole with a given score / skills value */
+    compFinishHole: (v) => {
+      if (game.comp.format.key == "skills") game.skillResult = v;
+      else game.strokes = v;
+      game.state = "done";
+      return competitionHoleDone();
+    },
+    get comp() {
+      return game.comp;
+    },
     showCard,
     peekCard,
     SCORES: () => game.scores,

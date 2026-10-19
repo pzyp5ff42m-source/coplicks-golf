@@ -5,6 +5,7 @@ import { $, DIFF, store } from "./config.js";
 import { HOLE, HOLES, PAR, holeIndex } from "./course.js";
 import { introFly, newRound, startHole, startReplay } from "./game.js";
 import { toStart } from "./ui.js";
+import { competitionHoleDone } from "./competition.js";
 import { game } from "./state.js";
 
 function bestKey(k = game.diffKey) {
@@ -49,6 +50,7 @@ function bestsHTML() {
     .join("")}</tr></table>`;
 }
 export function showCard() {
+  if (game.comp) return competitionHoleDone();
   game.scores[holeIndex] = game.strokes;
   game.holeStats[holeIndex] = { ...game.stats };
   const last = holeIndex >= HOLES.length - 1;

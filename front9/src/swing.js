@@ -177,6 +177,7 @@ addEventListener("pointerup", (e) => {
   }
 });
 addEventListener("keydown", (e) => {
+  if (e.target.tagName == "INPUT") return; // typing in a form field
   if (e.code == "Space") {
     e.preventDefault();
     if (game.ctrl == "meter") meterTap();

@@ -37,6 +37,8 @@ front9/
     ├── scorecard.js    9-hole scorecard and best scores for each difficulty
     ├── swing.js        3-tap swing meter and touch, mouse and keyboard input
     ├── ui.js           HUD, toasts, club picker, settings, start screen
+    ├── competition.js  competition mode: lobby, invites, rules, round flow, in-round hooks
+    ├── leaderboard.js  competition storage (textdb.dev), formats, scoring, standings, plausibility checks
     ├── debug.js        window.G test hooks (only with ?debug=1)
     └── data/
         ├── course.json     OSM outlines plus front-9 hole data (par, metres, tee/green, routing)
@@ -59,10 +61,53 @@ npm run serve        # or any static file server, then open http://localhost:300
 `app.js` as a normal script, so the built game also runs straight from the file
 system.
 
+## Competition mode
+
+Open **🏆 Competitions** on the start screen to create an invite-only event
+or to join one.
+
+- **Create:** enter a name and pick a difficulty that everyone will play on.
+  You then get:
+  - an **invite link** (`…/front9/?c=<code>`) to share with players
+  - a private **admin link** (`…&admin=<admin code>`) for removing players
+    from any device
+- **Join:** open the invite link, or type the code, then enter a player name.
+  The player identity is kept on that device in localStorage.
+- **Rounds:** each player plays the four rounds in order, in their own time.
+  The rules for each format are shown before its round starts.
+
+| Round | Format | Holes | Ranking |
+|---|---|---|---|
+| 1 | Stroke play | 1–9 | lowest total |
+| 2 | Stableford | 1–9 | most points; handicap = ¾ × (R1 − 34), 0–18, given by stroke index |
+| 3 | Match play vs par | 1–9 | holes won minus holes lost; ties go to fewest strokes |
+| 4 | Skills challenge | 3, 4, 7 | closest to the pin on 3 and 7 (combined metres) plus longest drive on 4 (fairway only); ranked separately and averaged |
+
+Overall standings add up place points from each round: 25-18-15-12-10-8-6-4-2-1.
+Tied players share the better place.
+
+**Storage:** [textdb.dev](https://textdb.dev) is free, needs no accounts and
+allows cross-origin requests. Each competition and each player has its own
+JSON document (see `leaderboard.js`). Only someone with the code can find a
+competition's documents.
+
+**Light anti-cheat:**
+- Each hole is saved the moment it's finished and can't be changed later, so
+  there is one submission per hole and per round.
+- Players can quit and resume, but they can't replay a hole they've finished.
+- Rounds unlock in order.
+- Standings are recalculated from the raw scores.
+- Rounds with impossible values (scores outside 1 to par+6, drives over 330 m)
+  or holes finished less than 4 s apart are shown as "not counted".
+
+These checks run in the browser. A determined player with the code could still
+edit the stored data, so this suits friendly competitions only.
+
 ## URL options
 
 - `?q=low|med|high` forces a graphics quality level. The default is auto, which
   steps down if the frame rate drops.
+- `?c=<code>` opens a competition; `&admin=<code>` unlocks the admin tools.
 - `?debug=1` adds `window.G` hooks for automated testing.
 
 ## Data sources

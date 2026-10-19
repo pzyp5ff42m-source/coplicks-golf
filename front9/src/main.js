@@ -19,6 +19,7 @@ import { update } from "./game.js";
 import { updMeter } from "./swing.js";
 import { hud, toStart } from "./ui.js";
 import { installTestHooks } from "./debug.js";
+import { competitionOnLoad } from "./competition.js";
 import { game } from "./state.js";
 
 // ---------- loop ----------
@@ -101,4 +102,6 @@ toStart();
 newWind();
 ball.set(TEE.x + hdir.x, 0, TEE.y + hdir.y);
 ball.y = surfY(ball.x, ball.z, "tee");
+competitionOnLoad();
 if (params.has("debug")) installTestHooks();
+requestAnimationFrame(frame);

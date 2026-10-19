@@ -24,6 +24,7 @@ import { loadHole } from "./holes.js";
 import { hud, toast, uiMode } from "./ui.js";
 import { showCard } from "./scorecard.js";
 import { setPreviewPower } from "./swing.js";
+import { competitionAfterShot } from "./competition.js";
 import { game } from "./state.js";
 
 // ---------- shot flow ----------
@@ -150,6 +151,7 @@ export function update(dt) {
   if (game.state == "replay") updReplay(dt);
 }
 export function settle() {
+  if (competitionAfterShot()) return;
   if (game.strokes >= PAR + 6) {
     game.state = "done";
     toast("Picked up 🫳<br><small>max " + (PAR + 6) + " on this hole</small>", 2000);

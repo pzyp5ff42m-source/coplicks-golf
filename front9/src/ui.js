@@ -13,6 +13,7 @@ import { totStr } from "./holes.js";
 import { introFly, newRound, settle, startReplay } from "./game.js";
 import { peekCard } from "./scorecard.js";
 import { meterTap, setPreviewPower } from "./swing.js";
+import { competitionQuit } from "./competition.js";
 import { game } from "./state.js";
 
 export function toast(t, ms = 1700) {
@@ -135,6 +136,7 @@ $("setDiff").onclick = () => {
   toStart();
 };
 export function toStart() {
+  if (game.comp) return competitionQuit();
   game.state = "start";
   game.camMode = "orbit";
   $("start").style.display = "flex";

@@ -360,3 +360,117 @@ th {
   justify-content: center;
   margin: 6px 0 12px;
 }
+
+/* ---------- competition lobby ---------- */
+#compO {
+  background: #000c;
+  z-index: 12;
+}
+#compBox {
+  background: #0c2618f2;
+  border-radius: 18px;
+  padding: 14px;
+  width: min(460px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  border-top: 4px solid #e8c547;
+  touch-action: pan-y;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.compbtn {
+  margin-top: 4px;
+}
+.csec {
+  background: #ffffff10;
+  border-radius: 12px;
+  padding: 10px;
+  margin: 10px 0;
+  text-align: left;
+}
+.csec.ok {
+  border: 1px solid #8fd16a;
+}
+.csec input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #fff4;
+  background: #0006;
+  color: #fff;
+  margin: 8px 0 4px;
+}
+.csec .big {
+  margin: 8px 0 0;
+  width: 100%;
+}
+.mono {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  background: #0005;
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin: 6px 0;
+}
+.cerr {
+  color: #ffb4a8;
+  margin: 10px 0;
+}
+.rounds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.rnd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  border-radius: 12px;
+  padding: 9px 10px;
+  gap: 2px;
+}
+.rnd span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.rnd.open {
+  background: #e8c547;
+  color: #222;
+}
+.rnd.done {
+  background: #2f6b3a;
+}
+.rnd.lock {
+  opacity: 0.55;
+}
+.tabs button {
+  padding: 6px 10px;
+}
+table.lb {
+  width: 100%;
+  font-size: 13px;
+}
+table.lb td,
+table.lb th {
+  padding: 4px 5px;
+}
+table.lb tr.me {
+  background: #e8c54733;
+}
+.rules {
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.4;
+  padding-left: 20px;
+}
+.arow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0;
+}
