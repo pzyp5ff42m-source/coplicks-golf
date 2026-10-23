@@ -474,3 +474,34 @@ table.lb tr.me {
   align-items: center;
   margin: 4px 0;
 }
+
+/* Fore! caption */
+#fore {
+  position: fixed;
+  left: 50%;
+  top: 18%;
+  transform: translate(-50%, 0) scale(0.6);
+  z-index: 40;
+  pointer-events: none;
+  font: 900 34px/1.1 system-ui, sans-serif;
+  letter-spacing: 1px;
+  color: #fff;
+  background: linear-gradient(180deg, #ff5a2a, #d6200f);
+  padding: 10px 20px;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  opacity: 0;
+}
+#fore.on {
+  animation: foreIn 2.6s ease-out forwards;
+}
+@keyframes foreIn {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6) rotate(-4deg); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(1.12) rotate(2deg); }
+  14% { transform: translate(-50%, 0) scale(1) rotate(-1deg); }
+  80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -12px) scale(0.96); }
+}

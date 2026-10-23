@@ -156,13 +156,50 @@ export function grassMat(o) {
         `
   float st=0.;if(sw>0.){float ac=dot(vWP.xz,vec2(-hd.y,hd.x));st=smoothstep(.4,.6,abs(fract(ac/sw)-.5)*2.);if(xw>0.){float al=dot(vWP.xz,hd);st=mix(st,1.-st,step(.5,fract(al/xw))*.5);}}
   vec3 gc=mix(cA,cB,st);float dd=texture2D(det,vWP.xz/drep).r;float dd2=texture2D(det,vWP.xz/(drep*7.3)).r;float n=vnoise(vWP.xz*.07)*.55+vnoise(vWP.xz*.29)*.3;
-  gc*=(.8+.42*dd)*(.9+.2*dd2)*(.86+.28*n);diffuseColor.rgb*=gc;` +
+  gc*=(.8+.42*dd)*(.9+.2*dd2)*(.86+.28*n);` +
+          // rough variation: dry straw patches, lush damp hollows and clover clumps
+          (o.rv
+            ? `float rp=vnoise(vWP.xz*.035+3.1)*.65+vnoise(vWP.xz*.11)*.35;gc*=mix(vec3(.9,1.02,.86),vec3(1.16,1.08,.74),smoothstep(.5,.78,rp));float cl=smoothstep(.72,.8,vnoise(vWP.xz*.6+7.));gc=mix(gc,gc*vec3(.82,1.05,.8),cl*.6);`
+            : "") +
+          `diffuseColor.rgb*=gc;` +
           // dithered soft edge: blotchy noise threshold makes a ragged grass margin
           (fade
             ? `float fn=vnoise(vWP.xz*1.3)*.6+h21(floor(vWP.xz*9.))*.4;if(vFade<fn*.95+.03)discard;`
             : ""),
       );
   };
-  m.customProgramCacheKey = () => "g" + (o.vc ? 1 : 0) + (o.nm ? 1 : 0) + (o.fade ? 1 : 0);
+  m.customProgramCacheKey = () => "g" + (o.vc ? 1 : 0) + (o.nm ? 1 : 0) + (o.fade ? 1 : 0) + (o.rv ? 1 : 0);
   return m;
 }
+
+/** Normal map for raked bunker sand (rake furrows + grain); used on the High tier. */
+export const sandNormalTex = (() => {
+  const s = TEX_SIZE,
+    c = document.createElement("canvas");
+  c.width = c.height = s;
+  const x = c.getContext("2d");
+  const h = new Float32Array(s * s);
+  for (let j = 0; j < s; j++)
+    for (let i = 0; i < s; i++) {
+      const y = j + (Math.sin((i / s) * Math.PI * 2) * s) / 22;
+      h[j * s + i] = Math.sin((y / s) * Math.PI * 2 * 16) * 0.6 + rnd() * 0.35;
+    }
+  const im = x.createImageData(s, s);
+  for (let j = 0; j < s; j++)
+    for (let i = 0; i < s; i++) {
+      const dx = h[j * s + ((i + 1) % s)] - h[j * s + ((i - 1 + s) % s)],
+        dy = h[((j + 1) % s) * s + i] - h[((j - 1 + s) % s) * s + i];
+      const nx = -dx * 1.5,
+        ny = -dy * 1.5,
+        l = Math.hypot(nx, ny, 1),
+        k = (j * s + i) * 4;
+      im.data[k] = ((nx / l) * 0.5 + 0.5) * 255;
+      im.data[k + 1] = ((ny / l) * 0.5 + 0.5) * 255;
+      im.data[k + 2] = ((1 / l) * 0.5 + 0.5) * 255;
+      im.data[k + 3] = 255;
+    }
+  x.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+})();

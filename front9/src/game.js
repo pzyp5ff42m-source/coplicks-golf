@@ -25,6 +25,7 @@ import { hud, toast, uiMode } from "./ui.js";
 import { showCard } from "./scorecard.js";
 import { setPreviewPower } from "./swing.js";
 import { competitionAfterShot } from "./competition.js";
+import { foreCheck, foreLoad, foreShout } from "./fore.js";
 import { game } from "./state.js";
 
 // ---------- shot flow ----------
@@ -38,6 +39,7 @@ export function shoot(power, accErr = 0) {
   const c = club(),
     l = curLie();
   game.strokes++;
+  foreLoad();
   lastSafe.copy(ball);
   if (c.n == "Putter" && (l == "green" || l == "fringe")) game.stats.putts++;
   const pw = Math.min(1.08, Math.max(0.02, power));
@@ -65,6 +67,11 @@ export function shoot(power, accErr = 0) {
     let n = 0;
     while (b.phase == "air" && !b.done && n++ < 6000) step(b, 1 / 60);
     const carry = Math.hypot(b.p.x - ball.x, b.p.z - ball.z);
+    // heading for another hole / out of bounds? queue one Fore call mid-flight
+    if (c.n != "Putter" && carry > 25) {
+      const side = foreCheck(ball, b.p, v);
+      if (side) game.cur.fore = { side, at: Math.min(1.1, b.t * 0.3) };
+    }
     if (carry > 60) {
       const dx = (b.p.x - ball.x) / carry,
         dz = (b.p.z - ball.z) / carry;
@@ -117,6 +124,10 @@ export function update(dt) {
       }
     }
     ball.copy(game.cur.p);
+    if (game.cur.fore && !game.cur.fore.done && game.cur.t > game.cur.fore.at) {
+      game.cur.fore.done = true;
+      foreShout(game.cur.fore.side);
+    }
     if (game.cur.landPos && game.cur.t > game.cur.landAt && game.camMode == "chase") {
       game.landCam = game.cur.landPos;
       game.camMode = "land";

@@ -46,17 +46,20 @@ export const tier = {
   high: {
     pr: 2,
     shadow: 2048,
-    trees: 3000,
-    tufts: 9000,
-    bush: 900,
+    trees: 3800,
+    tufts: 14000,
+    bush: 1600,
     bloom: true,
     maxE: 1.5,
     step: 2,
     parts: 320,
     tex: 512,
     clouds: 30,
+    fx: true, // High-only extras: colour grade, smooth-shaded trees, sand normals, water foam detail
   },
 }[quality];
+/** Lighting preset: "day" (default) or "golden" (golden hour). ?light=golden overrides. */
+export const lightMode = (params.get("light") || store.cgLight || "day") == "golden" ? "golden" : "day";
 export const DIFF = {
   easy: {
     name: "Easy",

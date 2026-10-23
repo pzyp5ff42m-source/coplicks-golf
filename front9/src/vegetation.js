@@ -30,13 +30,26 @@ function blocked(x, z, m = 6) {
     for (const p of P) if (Math.hypot(p[0] - x, p[1] - z) < 5) return true;
   return false;
 }
-function merge(list) {
+const TRUNKS = new Set([0x9a8a78, 0x8b7558, 0x7a6652]);
+function merge(list, smooth = false) {
   let pos = [],
     nor = [],
     col = [];
   for (const [g, c] of list) {
     const gg = g.index ? g.toNonIndexed() : g;
     gg.computeVertexNormals();
+    // smooth (High): foliage lobes get rounded normals pointing out from their centre
+    if (smooth && !TRUNKS.has(c)) {
+      gg.computeBoundingBox();
+      const ctr = gg.boundingBox.getCenter(new THREE.Vector3()),
+        pa = gg.attributes.position,
+        na = gg.attributes.normal,
+        t = new THREE.Vector3();
+      for (let i = 0; i < pa.count; i++) {
+        t.set(pa.getX(i) - ctr.x, (pa.getY(i) - ctr.y) * 1.6, pa.getZ(i) - ctr.z).normalize();
+        na.setXYZ(i, t.x * 0.8 + na.getX(i) * 0.2, t.y * 0.8 + na.getY(i) * 0.2, t.z * 0.8 + na.getZ(i) * 0.2);
+      }
+    }
     const p = gg.attributes.position.array,
       n = gg.attributes.normal.array;
     for (let i = 0; i < p.length; i++) {
@@ -44,8 +57,11 @@ function merge(list) {
       nor.push(n[i]);
     }
     const cc = new THREE.Color(c);
+    const leaf = !TRUNKS.has(c);
     for (let i = 0; i < p.length / 3; i++) {
-      const v = 0.88 + rnd() * 0.24;
+      let v = 0.88 + rnd() * 0.24;
+      // foliage: darker, self-shadowed underside / interior, sun-kissed crown
+      if (leaf) v *= 0.68 + 0.5 * Math.min(1, Math.max(0, (p[i * 3 + 1] - 0.5) / 0.5));
       col.push(cc.r * v, cc.g * v, cc.b * v);
     }
   }
@@ -112,14 +128,17 @@ for (let k = 0; k < 5; k++)
     xform(new THREE.ConeGeometry(0.22 - k * 0.03, 0.32, 7), 0, 0.38 + k * 0.13, 0),
     [0x34502a, 0x3c5a2e, 0x2f4a26][k % 3],
   ]);
-const bushG = merge([
+const bushG = merge(
+  [
   [xform(new THREE.IcosahedronGeometry(0.5, 0), 0, 0.3, 0, [1, 0.7, 1]), 0x46652c],
   [xform(new THREE.IcosahedronGeometry(0.38, 0), 0.35, 0.25, 0.1, [1, 0.7, 1]), 0x55753a],
   [xform(new THREE.IcosahedronGeometry(0.33, 0), -0.3, 0.22, -0.15, [1, 0.7, 1]), 0x3e5c27],
-]);
+  ],
+  !!tier.fx,
+);
 export const sway = { value: 0 };
 function vegMat(o = {}) {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true, ...o });
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: !tier.fx, ...o });
   m.onBeforeCompile = (s) => {
     s.uniforms.sway = sway;
     s.vertexShader =
@@ -204,7 +223,7 @@ for (let i = 0; i < 60000 && trees.length < tier.trees; i++) {
 }
 const tm = vegMat();
 inst(
-  merge(gumP),
+  merge(gumP, !!tier.fx),
   trees.filter((t) => t.type == "gum"),
   tm,
 );
@@ -232,6 +251,29 @@ inst(
     B.push({ x, z, h: s * 0.9, sx: s, sz: s, rot: rnd() * 6 });
   }
   inst(bushG, B, vegMat(), false);
+}
+// soft contact shadow (ambient occlusion) pooled under every tree and on the canopy side
+{
+  const aoT = ctex(64, (x, s) => {
+    const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(0,0,0,.55)");
+    g.addColorStop(0.5, "rgba(0,0,0,.3)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    x.fillStyle = g;
+    x.fillRect(0, 0, s, s);
+  });
+  const aoM = new THREE.MeshBasicMaterial({
+    map: aoT,
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -8,
+  });
+  const L = trees.map((t) => ({ x: t.x, z: t.z, h: 1, sx: t.sx * 0.75, sz: t.sz * 0.75, rot: t.rot }));
+  const im = inst(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), L, aoM, false);
+  im.receiveShadow = false;
+  im.position.y = 0.55;
 }
 // grass tufts (instanced crossed quads, alpha-tested)
 if (tier.tufts) {
@@ -290,6 +332,7 @@ if (tier.tufts) {
     alphaTest: 0.45,
     side: THREE.DoubleSide,
     roughness: 1,
+    emissive: 0x18260c,
   });
   const im = inst(tg, U, m, false);
   im.position.y = 0.2;

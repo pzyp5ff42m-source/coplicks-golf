@@ -31,6 +31,20 @@ export let cupM, ring;
     }),
   );
   scene.add(ring);
+  // worn, slightly darker turf ring around the hole + white cap on the pin
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.125, 0.55, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.09,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -11,
+      polygonOffsetUnits: -22,
+    }),
+  );
+  ring.add(halo);
 }
 const pc = document.createElement("canvas");
 pc.width = 8;
@@ -50,6 +64,14 @@ export const pole = new THREE.Mesh(
 );
 pole.castShadow = !!tier.shadow;
 scene.add(pole);
+{
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.04, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 }),
+  );
+  cap.position.y = 1.21;
+  pole.add(cap);
+}
 const fc = document.createElement("canvas");
 fc.width = 256;
 fc.height = 176;

@@ -1,10 +1,11 @@
 /**
  * HUD, toasts, club picker, settings panel and start screen.
  */
-import { $, DIFF, quality, qualitySetting, store } from "./config.js";
+import { $, DIFF, lightMode, quality, qualitySetting, store } from "./config.js";
 import { HOLE, playHeight } from "./course.js";
 import { cupPos } from "./props.js";
 import { audioInit, master } from "./audio.js";
+import { foreLoad } from "./fore.js";
 import { LIEN, wind, windNow } from "./physics.js";
 import { ball, club, clubTotal, curLie, distPin, putMax } from "./player.js";
 import { updPreview } from "./preview.js";
@@ -114,6 +115,11 @@ selGroup("qsel", qualitySetting, (v) => {
   if (v == "auto") delete store.cgQAuto;
   location.reload();
 });
+selGroup("lsel", lightMode, (v) => {
+  if (v == lightMode) return;
+  store.cgLight = v;
+  location.reload();
+});
 selGroup("csel", game.ctrl, (v) => {
   game.ctrl = v;
   store.cgCtrl = v;
@@ -145,6 +151,7 @@ export function toStart() {
 }
 $("playB").onclick = () => {
   audioInit();
+  foreLoad();
   $("start").style.display = "none";
   newRound();
   introFly();

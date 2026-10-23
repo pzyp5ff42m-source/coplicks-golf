@@ -25,6 +25,8 @@ export function installTestHooks() {
       return holeIndex;
     },
     startHole,
+    /** raw shared state, for tests (e.g. G.game.aim) */
+    game,
     introFly,
     /** competition: finish the current hole with a given score / skills value */
     compFinishHole: (v) => {

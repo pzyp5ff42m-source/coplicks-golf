@@ -21,7 +21,8 @@ import {
 } from "./course.js";
 import { polyDist, offsetPoly, pointInPoly, resample, shapeH, shp, subdiv } from "./geometry.js";
 import { fogCol, sunDir } from "./lighting.js";
-import { grassMat, greenNormalTex, sandTex } from "./materials.js";
+import { grassMat, greenNormalTex, sandNormalTex, sandTex } from "./materials.js";
+import { GOLDEN } from "./lighting.js";
 import { game } from "./state.js";
 
 /**
@@ -91,7 +92,7 @@ const RGH = new THREE.Color(0x4f7330),
   }
   tg.setAttribute("color", new THREE.BufferAttribute(col, 3));
   tg.computeVertexNormals();
-  const tm = new THREE.Mesh(tg, grassMat({ a: 0xffffff, vc: true, rep: 3 }));
+  const tm = new THREE.Mesh(tg, grassMat({ a: 0xffffff, vc: true, rep: 3, rv: true }));
   tm.receiveShadow = true;
   scene.add(tm);
   const gp2 = new THREE.Mesh(
@@ -104,7 +105,7 @@ const RGH = new THREE.Color(0x4f7330),
 const HOLE_RADIUS = 120;
 const turf = {
   cut: grassMat({ a: 0x5b8d34, b: 0x5f9237, order: 2, rep: 2.5, fade: true }),
-  fair: grassMat({ a: 0x6cab42, b: 0x84c457, sw: 7, order: 3, rep: 2.2 }),
+  fair: grassMat({ a: 0x68a63f, b: 0x86c859, sw: 7, order: 3, rep: 2.2 }),
   col: grassMat({ a: 0x6fb447, b: 0x77bb4d, order: 4, rep: 1.6, fade: true }),
   green: grassMat({
     a: 0x7cc753,
@@ -114,8 +115,8 @@ const turf = {
     order: 6,
     rep: 1.2,
     nm: greenNormalTex,
-    ns: 0.35,
-    rough: 0.8,
+    ns: tier.fx ? 0.45 : 0.35,
+    rough: tier.fx ? 0.66 : 0.8,
   }),
   tee: grassMat({ a: 0x73b84b, b: 0x85c75a, sw: 1.8, order: 5, rep: 1.6 }),
   sur: grassMat({ a: 0x5c8e35, order: 5, rep: 2.4, fade: true }),
@@ -123,10 +124,24 @@ const turf = {
 const sandM = new THREE.MeshStandardMaterial({
   map: sandTex,
   roughness: 1,
+  normalMap: tier.fx ? sandNormalTex : null,
+  normalScale: new THREE.Vector2(0.55, 0.55),
   polygonOffset: true,
   polygonOffsetFactor: -7,
   polygonOffsetUnits: -14,
 });
+// darker, damp sand where the face drops in from the lip; fresh dry sand in the middle
+sandM.onBeforeCompile = (sh) => {
+  sh.vertexShader =
+    "attribute float fade;varying float vFade;\n" +
+    sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvFade=fade;");
+  sh.fragmentShader =
+    "varying float vFade;\n" +
+    sh.fragmentShader.replace(
+      "#include <map_fragment>",
+      "#include <map_fragment>\ndiffuseColor.rgb*=mix(vec3(.62,.6,.56),vec3(1.03),smoothstep(0.,1.,vFade));",
+    );
+};
 export const holeFW = (LAYERS.fairway || []).filter((P) => near(P, HOLE_RADIUS));
 const bIn = (P) =>
   bunkers.filter((b) => pointInPoly(b.c[0], b.c[1], P)).map((b) => offsetPoly(b.P, 0.05).reverse());
@@ -159,8 +174,10 @@ function tube(P, rad, col, yo) {
 }
 bunkers.forEach((b) => {
   flat(offsetPoly(b.P, 2.2), turf.sur, 0.18, 4, [offsetPoly(b.P, 0.05).reverse()], 0.9, 1.6);
-  flat(b.P, sandM, 0.3, 4.5, null, 0.7);
+  flat(b.P, sandM, 0.3, 4.5, null, 0.7, 1.6);
   tube(b.P, 0.22, 0x4e7d2c, 0.32);
+  // shaggy lip: a second, rougher grass roll just outside the edge
+  if (tier.fx) tube(offsetPoly(b.P, 0.35), 0.16, 0x3f6a25, 0.36);
 });
 // water
 export const wU = {
@@ -169,33 +186,102 @@ export const wU = {
   fogColor: { value: fogCol },
   fogNear: { value: 300 },
   fogFar: { value: 1400 },
+  skyH: { value: new THREE.Color(GOLDEN ? 0xf2c08c : 0xd7e3ea) },
+  skyZ: { value: new THREE.Color(GOLDEN ? 0x6f86b0 : 0x3f78c0) },
 };
-const waterMat = new THREE.ShaderMaterial({
+const waterMat = (shore) => new THREE.ShaderMaterial({
   uniforms: wU,
+  defines: shore ? { SHORE: 1 } : {},
   polygonOffset: true,
   polygonOffsetFactor: -8,
   polygonOffsetUnits: -16,
-  vertexShader: `varying vec3 wp;void main(){vec4 w=modelMatrix*vec4(position,1.);wp=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader: `uniform float time;uniform vec3 sunDir,fogColor;uniform float fogNear,fogFar;varying vec3 wp;
+  vertexShader: `varying vec3 wp;
+#ifdef SHORE
+attribute float shore;varying float vSh;
+#endif
+void main(){vec4 w=modelMatrix*vec4(position,1.);wp=w.xyz;
+#ifdef SHORE
+vSh=shore;
+#endif
+gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader: `uniform float time;uniform vec3 sunDir,fogColor,skyH,skyZ;uniform float fogNear,fogFar;varying vec3 wp;
+#ifdef SHORE
+varying float vSh;
+#endif
 float h(vec2 p){return sin(p.x*.9+time*1.3)*.5+sin(p.y*1.1-time*1.7+p.x*.3)*.5+sin((p.x+p.y)*2.3+time*2.1)*.25+sin((p.x-p.y)*3.7-time*2.9)*.15+sin(length(p-vec2(floor(p.x/9.)*9.+4.5,floor(p.y/9.)*9.+4.5))*6.-time*4.)*.08;}
 void main(){vec2 p=wp.xz;float e=.05;vec3 n=normalize(vec3(-(h(p+vec2(e,0))-h(p))/e*.05,1.,-(h(p+vec2(0,e))-h(p))/e*.05));
 vec3 v=normalize(cameraPosition-wp);float fr=.03+.97*pow(1.-max(dot(n,v),0.),5.);vec3 rd=reflect(-v,n);
-float up=clamp(rd.y,0.,1.);vec3 skyc=mix(vec3(.86,.78,.66),vec3(.32,.52,.78),pow(up,.45));
+float up=clamp(rd.y,0.,1.);vec3 skyc=mix(skyH,skyZ,pow(up,.45));
 float treeBand=smoothstep(.02,.16,up)*(1.-smoothstep(.16,.3,up));skyc=mix(skyc,vec3(.1,.17,.08),treeBand*.85);
 vec3 deep=vec3(.04,.16,.18);vec3 col=mix(deep,skyc,clamp(fr*.9+.12,0.,.85));
 float sp=pow(max(dot(rd,sunDir),0.),300.);col+=vec3(1.,.9,.7)*sp*6.;
+#ifdef SHORE
+float ns=sin(p.x*1.7+time*.9)*sin(p.y*1.9-time*.7)*.5+sin((p.x-p.y)*4.1+time*1.6)*.25;
+col=mix(col,vec3(.16,.22,.14),(1.-smoothstep(0.,4.5,vSh))*.55);
+float fo=1.-smoothstep(.15,.9+ns*.35,vSh);float fo2=smoothstep(.05,.0,abs(vSh-1.4-sin(time*.8+p.x*.2)*.35))*.35;
+col=mix(col,vec3(.92,.94,.9),clamp(fo*.8+fo2,0.,.9));
+#endif
 float d=length(cameraPosition-wp);col=mix(col,fogColor,smoothstep(fogNear,fogFar,d));gl_FragColor=vec4(col,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`,
 });
+/** Thin draped strip along a shoreline (outer edge fades out) for the wet bank. */
+function bankRibbon(P, mat) {
+  const O = offsetPoly(P, 1.9),
+    I = offsetPoly(P, -0.5),
+    n = Math.min(O.length, I.length),
+    pos = [],
+    fd = [],
+    idx = [];
+  for (let i = 0; i < n; i++) {
+    for (const [q, f] of [[O[i], 0], [I[i], 1]]) {
+      pos.push(q[0], groundY(q[0], q[1]) + 0.14, q[1]);
+      fd.push(f);
+    }
+    const j = (i + 1) % n;
+    idx.push(i * 2, j * 2, i * 2 + 1, j * 2, j * 2 + 1, i * 2 + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("fade", new THREE.Float32BufferAttribute(fd, 1));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  if (g.attributes.normal.getY(0) < 0) {
+    for (let k = 0; k < idx.length; k += 3) [idx[k + 1], idx[k + 2]] = [idx[k + 2], idx[k + 1]];
+    g.setIndex(idx);
+    g.computeVertexNormals();
+  }
+  const m = new THREE.Mesh(g, mat);
+  m.receiveShadow = true;
+  scene.add(m);
+}
+const waterMatS = waterMat(true),
+  waterMatR = waterMat(false);
+turf.wet = grassMat({ a: 0x3b5a25, b: 0x3b5a25, order: 3, rep: 2, fade: true });
 const WLV = [];
 (LAYERS.water || []).forEach((P, wi) => {
   const lv = (DEM.water[wi] ?? 0.6) * ELEV_EXAG + 0.1;
   WLV.push(lv);
-  const m = new THREE.Mesh(new THREE.ShapeGeometry(shp(P)).rotateX(-Math.PI / 2), waterMat);
+  // subdivided so each vertex can carry its distance to the shore (foam + shallows)
+  let area = 0;
+  for (let k = 0; k < P.length; k++) {
+    const a = P[k],
+      b = P[(k + 1) % P.length];
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  // keep big dams to ~8k triangles; small ponds get fine shore detail
+  const wE = Math.max(tier.fx ? 1.6 : 2.6, Math.sqrt(Math.abs(area) / 2 / 4000));
+  const g = subdiv(new THREE.ShapeGeometry(shp(resample(P, Math.min(wE, 4), true))), wE).rotateX(-Math.PI / 2);
+  const gp = g.attributes.position,
+    sh = new Float32Array(gp.count);
+  for (let i = 0; i < gp.count; i++) sh[i] = Math.max(0, -polyDist(gp.getX(i), gp.getZ(i), P));
+  g.setAttribute("shore", new THREE.BufferAttribute(sh, 1));
+  const m = new THREE.Mesh(g, waterMatS);
   m.position.y = lv;
   scene.add(m);
+  // wet, darker bank where the turf meets the water
+  bankRibbon(P, turf.wet);
   tube(P, 0.6, 0x6b5a3a, -0.35 + lv - groundY(P[0][0], P[0][1]));
 });
 (COURSE.lines.river || []).forEach((P) => {
@@ -206,7 +292,7 @@ const WLV = [];
       dz = b[1] - a[1],
       l = Math.hypot(dx, dz);
     if (l < 0.1) continue;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(l + 10, 18).rotateX(-Math.PI / 2), waterMat);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(l + 10, 18).rotateX(-Math.PI / 2), waterMatR);
     m.rotation.y = -Math.atan2(dz, dx);
     m.position.set(
       (a[0] + b[0]) / 2,
